@@ -12,9 +12,9 @@ import trl
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
-    block_size: int = field(default=32768)
+    block_size: int = field(default=20000)
     wandb_project: Optional[str] = field(default="s1")
-    wandb_entity: Optional[str] = field(default="hashimoto-group")
+    wandb_entity: Optional[str] = field(default="nguyencong-utsuro_lab")
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
     dagger: bool = field(default=False)
 
