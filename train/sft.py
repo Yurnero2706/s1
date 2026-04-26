@@ -6,6 +6,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from datasets import load_dataset, concatenate_datasets, DatasetDict
+import torch
 import transformers
 from transformers import BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model
@@ -40,20 +41,30 @@ def train():
                   "attn_implementation": "flash_attention_2", "use_cache": False}
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
     else:
-        # For large models (<70B) still benefit from low memory loading and automatic device placement
-        bnb_config = BitsAndBytesConfig(load_in_8bit=True)
         # When launched with torchrun / distributed mode, avoid using device_map='auto'
         # because Accelerator cannot train models pre-dispatched across devices.
+        # Also avoid 8-bit quantization in distributed mode as it's incompatible with FSDP
         is_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1 or os.environ.get("LOCAL_RANK") is not None or os.environ.get("RANK") is not None
-        device_map = None if is_distributed else "auto"
-        model = transformers.AutoModelForCausalLM.from_pretrained(
-            config.model_name,
-            device_map=device_map,
-            quantization_config=bnb_config,
-            torch_dtype="auto",
-            low_cpu_mem_usage=not is_distributed,  # Disable for distributed to avoid device pre-assignment
-            use_cache=False,
-        )
+        
+        if is_distributed:
+            # For FSDP distributed training: load model without quantization or device_map
+            # LoRA will provide efficiency, FSDP will handle sharding
+            model = transformers.AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                torch_dtype=torch.float16,
+                use_cache=False,
+            )
+        else:
+            # For single-GPU training: use 8-bit quantization for memory efficiency
+            bnb_config = BitsAndBytesConfig(load_in_8bit=True)
+            model = transformers.AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                device_map="auto",
+                quantization_config=bnb_config,
+                torch_dtype="auto",
+                low_cpu_mem_usage=True,
+                use_cache=False,
+            )
 
     dataset = load_dataset(config.train_file_path)
     
