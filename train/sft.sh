@@ -12,6 +12,9 @@ max_steps=-1
 gpu_count=$(nvidia-smi -L | wc -l)
 push_to_hub=false
 
+# Reduce CUDA fragmentation to avoid allocation failures during shard loading
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
 torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     train/sft.py \
     --block_size=20000 \

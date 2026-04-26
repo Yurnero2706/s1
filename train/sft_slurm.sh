@@ -28,6 +28,8 @@ head_node=($node_array)
 head_node_ip=$(ssh $head_node hostname --ip-address)
 export NCCL_DEBUG=INFO
 export NCCL_TIMEOUT=3600
+# Reduce CUDA fragmentation to avoid allocation failures during shard loading
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 
 # Calculate gradient accumulation steps
