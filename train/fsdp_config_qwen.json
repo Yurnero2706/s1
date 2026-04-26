@@ -1,1 +1,11 @@
-{"transformer_layer_cls_to_wrap": "Qwen2DecoderLayer"}
+{
+    "transformer_layer_cls_to_wrap": "Qwen2DecoderLayer",
+    "skip_if_contains_string": ["lm_head", "embed_tokens"],
+    "cpu_ram_efficient_loading": false,
+    "sharding_strategy": "FULL_SHARD",
+    "fsdp_offload_params": false,
+    "forward_prefetch": true,
+    "backward_prefetch": "BACKWARD_PRE",
+    "limit_all_gathers": true,
+    "use_orig_params": false
+}

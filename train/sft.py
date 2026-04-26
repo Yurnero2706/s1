@@ -51,7 +51,7 @@ def train():
             device_map=device_map,
             quantization_config=bnb_config,
             torch_dtype="auto",
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=not is_distributed,  # Disable for distributed to avoid device pre-assignment
             use_cache=False,
         )
 
