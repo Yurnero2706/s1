@@ -7,6 +7,8 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from datasets import load_dataset, concatenate_datasets, DatasetDict
 import transformers
+from transformers import BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model
 import trl
 
 @dataclass
@@ -39,16 +41,33 @@ def train():
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
     else:
         # For large models (<70B) still benefit from low memory loading and automatic device placement
+        bnb_config = BitsAndBytesConfig(load_in_8bit=True)
         model = transformers.AutoModelForCausalLM.from_pretrained(
             config.model_name,
             device_map="auto",
-            load_in_8bit=True,
+            quantization_config=bnb_config,
             torch_dtype="auto",
             low_cpu_mem_usage=True,
             use_cache=False,
         )
 
     dataset = load_dataset(config.train_file_path)
+
+    # Attach LoRA adapters so fine-tuning is possible on quantized models
+    # Adjust `target_modules` for your model architecture if needed
+    try:
+        lora_config = LoraConfig(
+            r=8,
+            lora_alpha=32,
+            target_modules=["q_proj", "v_proj"],
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, lora_config)
+    except Exception:
+        # If PEFT fails for any reason, continue without adapters and let the Trainer raise the appropriate error
+        logging.warning("Failed to attach LoRA adapters automatically; ensure PEFT is installed and target_modules are correct.")
 
     # setting up trainer
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model_name, use_fast=True)
