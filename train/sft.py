@@ -38,7 +38,14 @@ def train():
                   "attn_implementation": "flash_attention_2", "use_cache": False}
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
     else:
-        model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
+        # For large models (<70B) still benefit from low memory loading and automatic device placement
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            config.model_name,
+            device_map="auto",
+            torch_dtype="auto",
+            low_cpu_mem_usage=True,
+            use_cache=False,
+        )
 
     dataset = load_dataset(config.train_file_path)
 
