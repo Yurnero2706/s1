@@ -42,9 +42,13 @@ def train():
     else:
         # For large models (<70B) still benefit from low memory loading and automatic device placement
         bnb_config = BitsAndBytesConfig(load_in_8bit=True)
+        # When launched with torchrun / distributed mode, avoid using device_map='auto'
+        # because Accelerator cannot train models pre-dispatched across devices.
+        is_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1 or os.environ.get("LOCAL_RANK") is not None or os.environ.get("RANK") is not None
+        device_map = None if is_distributed else "auto"
         model = transformers.AutoModelForCausalLM.from_pretrained(
             config.model_name,
-            device_map="auto",
+            device_map=device_map,
             quantization_config=bnb_config,
             torch_dtype="auto",
             low_cpu_mem_usage=True,
