@@ -16,7 +16,7 @@ from collections import defaultdict
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-7B")
-    block_size: int = field(default=32768)
+    block_size: int = field(default=2048)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="hashimoto-group")
     use_wandb: bool = field(default=False)
@@ -97,6 +97,20 @@ def train():
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
+
+    # Reduce memory by disabling cache and enabling gradient checkpointing when available.
+    try:
+        if hasattr(model, "config"):
+            model.config.use_cache = False
+    except Exception:
+        logging.exception("Failed to set model.config.use_cache = False")
+
+    if hasattr(model, "gradient_checkpointing_enable"):
+        try:
+            model.gradient_checkpointing_enable()
+            logging.info("Enabled model.gradient_checkpointing_enable()")
+        except Exception:
+            logging.exception("Failed to enable gradient checkpointing on model")
 
     dataset = load_dataset(config.train_file_path)
 
