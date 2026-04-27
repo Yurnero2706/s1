@@ -11,7 +11,7 @@ import trl
 
 @dataclass
 class TrainingConfig:
-    model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
+    model_name: str = field(default="Qwen/Qwen2.5-7B")
     block_size: int = field(default=32768)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="congnguyen-utsuro_lab")
@@ -31,22 +31,14 @@ def train():
 
     # loading model
     kwargs = {}
-    try:
-        # Detect very large models and load them with CPU-friendly options to avoid GPU OOMs.
-        if any(tag in config.model_name for tag in ("70B", "32B", "64B", "33B", "67B")):
-            # Use device_map=auto and low_cpu_mem_usage to reduce peak GPU memory during model load.
-            kwargs = {"device_map": "auto", "torch_dtype": "auto", "low_cpu_mem_usage": True, "use_cache": False}
-            logging.info(f"Detected large model '{config.model_name}', loading with kwargs={kwargs}")
-            model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
-        else:
-            model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
-    except Exception:
-        logging.exception(
-            "Failed to load model. Common mitigations: use a smaller model, enable FSDP CPU offload "
-            "(`fsdp_config_qwen_cpu.json`), enable gradient checkpointing, increase gradient accumulation, "
-            "or perform parameter-efficient finetuning (LoRA/PEFT)."
-        )
-        raise
+    if "70B" in config.model_name:
+        # Removed "low_cpu_mem_usage": True, for 70B, since by default we are in FSDP,
+        # it's more efficient to do  "cpu_ram_efficient_loading": true, in fsdp_config.json
+        kwargs = {"device_map": "auto", "torch_dtype": "auto",
+                  "attn_implementation": "flash_attention_2", "use_cache": False}
+        model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
+    else:
+        model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
 
     dataset = load_dataset(config.train_file_path)
 
