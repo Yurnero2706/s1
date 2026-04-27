@@ -40,5 +40,5 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --push_to_hub=${push_to_hub} \
     --save_only_model=True \
     --gradient_checkpointing=True # Enable gradient checkpointing for efficient memory usage with 8 H100 GPUs.
-    # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
+    --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
 
