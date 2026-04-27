@@ -42,7 +42,7 @@ def train():
         config.model_name,
         quantization_config=bnb_config,
         device_map="auto",
-        attn_implementation="flash_attention_2",
+        # attn_implementation="flash_attention_2",
     )
 
     # LoRA config
