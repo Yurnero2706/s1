@@ -12,6 +12,16 @@ max_steps=-1
 gpu_count=$(nvidia-smi -L | wc -l)
 push_to_hub=false
 
+# For small multi-GPU machines use the CPU-oriented FSDP config and enable gradient checkpointing.
+if [ "${gpu_count}" -lt 4 ]; then
+    echo "Detected ${gpu_count} GPU(s): using CPU-offload FSDP config and enabling gradient checkpointing."
+    fsdp_config="train/fsdp_config_qwen_cpu.json"
+    gradient_checkpointing="True"
+else
+    fsdp_config="train/fsdp_config_qwen.json"
+    gradient_checkpointing="False"
+fi
+
 torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     train/sft.py \
     --block_size=32768 \
@@ -23,7 +33,7 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --model_name=${base_model} \
     --warmup_ratio=0.05 \
     --fsdp="full_shard auto_wrap" \
-    --fsdp_config="train/fsdp_config_qwen.json" \
+    --fsdp_config="${fsdp_config}" \
     --bf16=True \
     --eval_strategy="no" \
     --logging_steps=1 \
@@ -36,5 +46,5 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --output_dir="ckpts/s1-${uid}" \
     --push_to_hub=${push_to_hub} \
     --save_only_model=True
-    # --gradient_checkpointing=True \ Enable gradient checkpointing for efficient memory usage with 8 H100 GPUs.
+    --gradient_checkpointing=${gradient_checkpointing}
     # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
