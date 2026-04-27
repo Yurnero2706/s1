@@ -17,7 +17,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     train/sft.py \
-    --block_size=1000 \
+    --block_size=512 \
     --per_device_train_batch_size=${micro_batch_size} \
     --per_device_eval_batch_size=${micro_batch_size} \
     --optim="adamw_bnb_8bit" \
@@ -26,8 +26,8 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --train_file_path="simplescaling/s1K_tokenized" \
     --model_name=${base_model} \
     --warmup_ratio=0.05 \
-    --fsdp="full_shard auto_wrap" \
-    --fsdp_config="train/fsdp_config_qwen.json" \
+    # --fsdp="full_shard auto_wrap" \
+    # --fsdp_config="train/fsdp_config_qwen.json" \
     --bf16=True \
     --eval_strategy="no" \
     --logging_steps=1 \
