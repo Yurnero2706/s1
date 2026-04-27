@@ -8,6 +8,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 from datasets import load_dataset, concatenate_datasets, DatasetDict
 import transformers
 import trl
+import matplotlib.pyplot as plt
+import json
+from pathlib import Path
+from collections import defaultdict
 
 @dataclass
 class TrainingConfig:
@@ -15,12 +19,66 @@ class TrainingConfig:
     block_size: int = field(default=32768)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="hashimoto-group")
+    use_wandb: bool = field(default=False)
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
     dagger: bool = field(default=False)
+    results_dir: str = field(default="results")
 
     def __post_init__(self):
-        os.environ['WANDB_PROJECT'] = self.wandb_project
-        os.environ['WANDB_ENTITY'] = self.wandb_entity
+        if self.use_wandb:
+            os.environ['WANDB_PROJECT'] = self.wandb_project
+            os.environ['WANDB_ENTITY'] = self.wandb_entity
+        else:
+            # Disable wandb to avoid accidental online logging
+            os.environ['WANDB_MODE'] = 'disabled'
+
+
+def _save_training_plots(trainer, output_dir: str):
+    try:
+        logs = getattr(trainer.state, "log_history", None) or []
+    except Exception:
+        logging.exception("Could not read trainer.state.log_history")
+        logs = []
+
+    if not logs:
+        logging.info("No training logs found to plot.")
+        return
+
+    results_path = Path(output_dir or "results")
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    traces = defaultdict(list)
+    for i, entry in enumerate(logs):
+        step = entry.get('step', None)
+        step_idx = step if step is not None else i
+        for k, v in entry.items():
+            if k in ("step", "epoch", "total_flos", "train_runtime", "timestamp"):
+                continue
+            if isinstance(v, (int, float)):
+                traces[k].append((step_idx, float(v)))
+
+    # Save raw parsed metrics
+    serializable = {k: [[int(x), float(y)] for x, y in vals] for k, vals in traces.items()}
+    with open(results_path / "metrics.json", "w") as fh:
+        json.dump(serializable, fh, indent=2)
+
+    # Plot each numeric metric
+    for metric, vals in traces.items():
+        xs = [x for x, _ in vals]
+        ys = [y for _, y in vals]
+        if len(xs) == 0:
+            continue
+        plt.figure()
+        plt.plot(xs, ys, marker='o' if len(xs) < 50 else None)
+        plt.xlabel('step')
+        plt.ylabel(metric)
+        plt.title(metric)
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(results_path / f"{metric}.png")
+        plt.close()
+
+    logging.info(f"Saved metrics plots to {results_path}")
 
 def train():
     # parsing input
@@ -77,6 +135,11 @@ def train():
     trainer.train()
     trainer.save_model(output_dir=args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
+    try:
+        out_dir = getattr(args, 'output_dir', None) or config.results_dir
+        _save_training_plots(trainer, out_dir)
+    except Exception:
+        logging.exception("Failed to save training plots")
     trainer.accelerator.wait_for_everyone()
 
 
