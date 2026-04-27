@@ -6,18 +6,15 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from datasets import load_dataset, concatenate_datasets, DatasetDict
-import torch
 import transformers
-from transformers import BitsAndBytesConfig
-from peft import LoraConfig, get_peft_model
 import trl
 
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
-    block_size: int = field(default=256)
+    block_size: int = field(default=32768)
     wandb_project: Optional[str] = field(default="s1")
-    wandb_entity: Optional[str] = field(default="nguyencong-utsuro_lab")
+    wandb_entity: Optional[str] = field(default="hashimoto-group")
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
     dagger: bool = field(default=False)
 
@@ -26,38 +23,11 @@ class TrainingConfig:
         os.environ['WANDB_ENTITY'] = self.wandb_entity
 
 def train():
+    # parsing input
     parser = transformers.HfArgumentParser((TrainingConfig, trl.SFTConfig))
     config, args = parser.parse_args_into_dataclasses()
-
-    # 4-bit quantization config
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_use_double_quant=True,
-    )
-
-    # Load model in 4-bit
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        config.model_name,
-        quantization_config=bnb_config,
-        device_map="balanced",
-        # attn_implementation="flash_attention_2",
-    )
-
-    # LoRA config
-    lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
-        target_modules="all-linear",
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, lora_config)
-    model.enable_input_require_grads()          # required for grad checkpointing with PEFT
-    model.gradient_checkpointing_enable()
-    model.print_trainable_parameters()
+    log_config = {**asdict(config), **asdict(args)}
+    logging.info(f"Training config: {log_config}")
 
     # loading model
     kwargs = {}
@@ -70,10 +40,8 @@ def train():
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
 
-    logging.info(f"Model device map: {model.hf_device_map}")
-    
     dataset = load_dataset(config.train_file_path)
-    
+
     # setting up trainer
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model_name, use_fast=True)
     if "Llama" in config.model_name:

@@ -12,20 +12,18 @@ max_steps=-1
 gpu_count=$(nvidia-smi -L | wc -l)
 push_to_hub=false
 
-# Reduce CUDA fragmentation to avoid allocation failures during shard loading
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-
 torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     train/sft.py \
-    --block_size=256 \
+    --block_size=32768 \
     --per_device_train_batch_size=${micro_batch_size} \
     --per_device_eval_batch_size=${micro_batch_size} \
-    --optim="adamw_bnb_8bit" \
     --gradient_accumulation_steps=${gradient_accumulation_steps} \
     --num_train_epochs=${epochs} \
     --train_file_path="simplescaling/s1K_tokenized" \
     --model_name=${base_model} \
     --warmup_ratio=0.05 \
+    --fsdp="full_shard auto_wrap" \
+    --fsdp_config="train/fsdp_config_qwen.json" \
     --bf16=True \
     --eval_strategy="no" \
     --logging_steps=1 \
@@ -37,11 +35,6 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --adam_beta2=0.95 \
     --output_dir="ckpts/s1-${uid}" \
     --push_to_hub=${push_to_hub} \
-    --save_only_model=True \
-    --optim="paged_adamw_8bit" \
-    --dataloader_num_workers=0
-    # --gradient_checkpointing=True \
-    # --fsdp="full_shard auto_wrap" \
-    # --fsdp_config="train/fsdp_config_qwen.json" \
+    --save_only_model=True
+    # --gradient_checkpointing=True \ Enable gradient checkpointing for efficient memory usage with 8 H100 GPUs.
     # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
-
