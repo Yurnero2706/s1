@@ -15,7 +15,7 @@ import trl
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
-    block_size: int = field(default=20000)
+    block_size: int = field(default=10000)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="nguyencong-utsuro_lab")
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
@@ -41,49 +41,10 @@ def train():
                   "attn_implementation": "flash_attention_2", "use_cache": False}
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name, **kwargs)
     else:
-        # When launched with torchrun / distributed mode, avoid using device_map='auto'
-        # because Accelerator cannot train models pre-dispatched across devices.
-        # Also avoid 8-bit quantization in distributed mode as it's incompatible with FSDP
-        is_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1 or os.environ.get("LOCAL_RANK") is not None or os.environ.get("RANK") is not None
-        
-        if is_distributed:
-            # For FSDP distributed training: load model without quantization or device_map
-            # LoRA will provide efficiency, FSDP will handle sharding
-            model = transformers.AutoModelForCausalLM.from_pretrained(
-                config.model_name,
-                torch_dtype=torch.float16,
-                use_cache=False,
-            )
-        else:
-            # For single-GPU training: use 8-bit quantization for memory efficiency
-            bnb_config = BitsAndBytesConfig(load_in_8bit=True)
-            model = transformers.AutoModelForCausalLM.from_pretrained(
-                config.model_name,
-                device_map="auto",
-                quantization_config=bnb_config,
-                torch_dtype="auto",
-                low_cpu_mem_usage=True,
-                use_cache=False,
-            )
+        model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
 
     dataset = load_dataset(config.train_file_path)
     
-    # Attach LoRA adapters so fine-tuning is possible on quantized models
-    # Adjust `target_modules` for your model architecture if needed
-    try:
-        lora_config = LoraConfig(
-            r=8,
-            lora_alpha=32,
-            target_modules=["q_proj", "v_proj"],
-            lora_dropout=0.05,
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-        model = get_peft_model(model, lora_config)
-    except Exception:
-        # If PEFT fails for any reason, continue without adapters and let the Trainer raise the appropriate error
-        logging.warning("Failed to attach LoRA adapters automatically; ensure PEFT is installed and target_modules are correct.")
-
     # setting up trainer
     tokenizer = transformers.AutoTokenizer.from_pretrained(config.model_name, use_fast=True)
     if "Llama" in config.model_name:
