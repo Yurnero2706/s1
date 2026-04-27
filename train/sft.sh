@@ -17,7 +17,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     train/sft.py \
-    --block_size=5000 \
+    --block_size=1000 \
     --per_device_train_batch_size=${micro_batch_size} \
     --per_device_eval_batch_size=${micro_batch_size} \
     --gradient_accumulation_steps=${gradient_accumulation_steps} \
@@ -40,6 +40,6 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --push_to_hub=${push_to_hub} \
     --save_only_model=True \
     --gradient_checkpointing=True \
-    --num_workers=0
+    --dataloader_num_workers=0
     # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
 
