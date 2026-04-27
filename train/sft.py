@@ -15,7 +15,7 @@ import trl
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
-    block_size: int = field(default=1000)
+    block_size: int = field(default=20000)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="nguyencong-utsuro_lab")
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
@@ -26,11 +26,36 @@ class TrainingConfig:
         os.environ['WANDB_ENTITY'] = self.wandb_entity
 
 def train():
-    # parsing input
     parser = transformers.HfArgumentParser((TrainingConfig, trl.SFTConfig))
     config, args = parser.parse_args_into_dataclasses()
-    log_config = {**asdict(config), **asdict(args)}
-    logging.info(f"Training config: {log_config}")
+
+    # 4-bit quantization config
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True,
+    )
+
+    # Load model in 4-bit
+    model = transformers.AutoModelForCausalLM.from_pretrained(
+        config.model_name,
+        quantization_config=bnb_config,
+        device_map="auto",
+        attn_implementation="flash_attention_2",
+    )
+
+    # LoRA config
+    lora_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        target_modules="all-linear",
+        lora_dropout=0.05,
+        bias="none",
+        task_type="CAUSAL_LM",
+    )
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
 
     # loading model
     kwargs = {}
