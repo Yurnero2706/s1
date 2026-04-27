@@ -15,7 +15,7 @@ import trl
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-32B-Instruct")
-    block_size: int = field(default=20000)
+    block_size: int = field(default=1000)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="nguyencong-utsuro_lab")
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
@@ -68,6 +68,8 @@ def train():
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(config.model_name)
 
+    logging.info(f"Model device map: {model.hf_device_map}")
+    
     dataset = load_dataset(config.train_file_path)
     
     # setting up trainer
