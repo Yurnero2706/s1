@@ -40,6 +40,6 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --push_to_hub=${push_to_hub} \
     --save_only_model=True \
     --gradient_checkpointing=True \
-    --num_workers 0
+    --num_workers=0
     # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
 
