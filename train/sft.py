@@ -41,7 +41,7 @@ def train():
     model = transformers.AutoModelForCausalLM.from_pretrained(
         config.model_name,
         quantization_config=bnb_config,
-        device_map="auto",
+        device_map="balanced",
         # attn_implementation="flash_attention_2",
     )
 
