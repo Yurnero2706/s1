@@ -55,6 +55,8 @@ def train():
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
+    model.enable_input_require_grads()          # required for grad checkpointing with PEFT
+    model.gradient_checkpointing_enable()
     model.print_trainable_parameters()
 
     # loading model

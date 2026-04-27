@@ -38,8 +38,9 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --output_dir="ckpts/s1-${uid}" \
     --push_to_hub=${push_to_hub} \
     --save_only_model=True \
-    --gradient_checkpointing=True \
+    --optim="paged_adamw_8bit" \
     --dataloader_num_workers=0
+    # --gradient_checkpointing=True \
     # --fsdp="full_shard auto_wrap" \
     # --fsdp_config="train/fsdp_config_qwen.json" \
     # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
