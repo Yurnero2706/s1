@@ -26,8 +26,6 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --train_file_path="simplescaling/s1K_tokenized" \
     --model_name=${base_model} \
     --warmup_ratio=0.05 \
-    # --fsdp="full_shard auto_wrap" \
-    # --fsdp_config="train/fsdp_config_qwen.json" \
     --bf16=True \
     --eval_strategy="no" \
     --logging_steps=1 \
@@ -42,5 +40,7 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --save_only_model=True \
     --gradient_checkpointing=True \
     --dataloader_num_workers=0
+    # --fsdp="full_shard auto_wrap" \
+    # --fsdp_config="train/fsdp_config_qwen.json" \
     # --accelerator_config='{"gradient_accumulation_kwargs": {"sync_each_batch": true}}'
 
