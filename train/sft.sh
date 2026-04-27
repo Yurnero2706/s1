@@ -20,6 +20,7 @@ torchrun --nproc-per-node ${gpu_count} --master_port 12345 \
     --block_size=1000 \
     --per_device_train_batch_size=${micro_batch_size} \
     --per_device_eval_batch_size=${micro_batch_size} \
+    --optim="adamw_bnb_8bit" \
     --gradient_accumulation_steps=${gradient_accumulation_steps} \
     --num_train_epochs=${epochs} \
     --train_file_path="simplescaling/s1K_tokenized" \
