@@ -16,7 +16,7 @@ from collections import defaultdict
 @dataclass
 class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-3B")
-    block_size: int = field(default=1024)
+    block_size: int = field(default=20000)
     wandb_project: Optional[str] = field(default="s1")
     wandb_entity: Optional[str] = field(default="hashimoto-group")
     use_wandb: bool = field(default=False)

@@ -17,7 +17,7 @@ push_to_hub=false
 # - enable gradient checkpointing on small GPU counts
 # - prefer CPU-offload FSDP config on small multi-gpu machines
 # - set PYTORCH_CUDA_ALLOC_CONF to reduce fragmentation
-BLOCK_SIZE=${BLOCK_SIZE:-1024}
+BLOCK_SIZE=${BLOCK_SIZE:-20000}
 export PYTORCH_CUDA_ALLOC_CONF="garbage_collection_threshold:0.6,max_split_size_mb:128"
 
 if [ "${gpu_count}" -lt 4 ]; then
