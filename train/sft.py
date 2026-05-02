@@ -18,7 +18,7 @@ class TrainingConfig:
     model_name: str = field(default="Qwen/Qwen2.5-3B")
     block_size: int = field(default=20000)
     wandb_project: Optional[str] = field(default="s1")
-    wandb_entity: Optional[str] = field(default="hashimoto-group")
+    wandb_entity: Optional[str] = field(default="congnguyen-utsuto_lab")
     use_wandb: bool = field(default=False)
     train_file_path: Optional[str] = field(default='simplescaling/s1K_tokenized')
     dagger: bool = field(default=False)
