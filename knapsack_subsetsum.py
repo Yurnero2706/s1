@@ -31,7 +31,7 @@ def min_subset_sum_partition(nums, precision):
 data = pd.read_csv(r"number_set_100.csv")
 arr = data['Number'].tolist()
 
-A, B, diff = min_subset_sum_partition(arr, precision=8)
+A, B, diff = min_subset_sum_partition(arr, precision=10)
 sum_A = sum(arr[i] for i in A)
 sum_B = sum(arr[i] for i in B)
 
